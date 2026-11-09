@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+      # needed because we use git describe to get a bumpver compatible GITHASH containing version
+      # alternatively can look at using HEXHASH instead. Note that these are purposefully not
+      # documented in the bumpver project, see issues/PRs for more info.
+      # with:
+      #   fetch-depth: 0
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: uv sync
+    - name: Run tests
+      run: uv run pytest
+    # NOTE: publishing to test repository is disabled until I figure out a way to do it reliably
+    # this means that we need to avoid version clashes as well as local versions
+    # see: https://github.com/pypa/packaging.python.org/issues/804
+    # - name: Publish to test repository
+    #   if: matrix.python-version == '3.11'
+    #   run: |
+    #     # adding the git hash to the current version so that the package
+    #     # won't be rejected from the test repository due to version clash
+    #     TEMP_VERSION=$(git describe | sed s/\-/\./ | sed s/\-/\+/)
+    #     uv run bumpver update --no-commit --no-tag-commit --set-version="${TEMP_VERSION}"
+    #     uv publish --index testpypi
